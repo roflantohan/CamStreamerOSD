@@ -1,0 +1,6 @@
+fastcrc==0.3.2
+lxml==6.0.2
+numpy==2.2.6
+opencv-python==4.12.0.88
+pymavlink==2.4.49
+pyserial==3.5

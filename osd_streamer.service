@@ -1,0 +1,15 @@
+[Unit]
+Description=OSD
+After=multi-user.target
+
+[Service]
+User=pi
+ExecStart=/home/pi/CamStreamerOSD/.venv/bin/python /home/pi/CamStreamerOSD/src/main.py
+Restart=always
+RestartSec=2
+WorkingDirectory=/home/pi/CamStreamerOSD
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
