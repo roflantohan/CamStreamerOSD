@@ -1,4 +1,5 @@
 import time
+import math
 from pymavlink import mavutil
 from pymavlink.quaternion import QuaternionBase
 
@@ -14,6 +15,7 @@ class ArduPilotBase:
         self.is_autopilot = False
 
         self.attitude = [0, 0, 0]
+        self.attitude_deg = [0, 0, 0]
         self.pitch_limit = [0, 0]
         self.roll_limit = [0, 0]
         self.yaw_limit = [0, 0]
@@ -24,16 +26,18 @@ class ArduPilotBase:
         self.custom_name = ""
         self.custom_value = ""
 
+        self.armed = False
+        self.time_armed_us = 0
+        self.time_boot_us = 0
         # #OSD
-        self.takeoff_time_utc_us = None
-        
+
         self.home_lat = None
         self.home_lon = None
-        self.home_alt = None # mm
+        self.home_alt = None  # mm
 
         self.pos_lat = None
         self.pos_lon = None
-        self.pos_alt_rel = None # mm
+        self.pos_alt_rel = None  # mm
 
         self.hud_airspeed = None
         self.hud_groundspeed = None
@@ -97,14 +101,6 @@ class ArduPilotBase:
         return self.channels
 
     def listen_feed(self):
-        # self.master.mav.command_long_send(
-        #     self.master.target_system,
-        #     self.master.target_component,
-        #     mavutil.mavlink.MAV_CMD_REQUEST_MESSAGE,
-        #     0,
-        #     264,   # param1 = ID сообщения FLIGHT_INFORMATION
-        #     0, 0, 0, 0, 0, 0
-        # )
         msg = self.master.recv_match(blocking=False)
 
         if not msg:
@@ -112,14 +108,28 @@ class ArduPilotBase:
 
         msg_type = msg.get_type()
 
-        # print(msg_type)
+        if msg_type == "SYSTEM_TIME":
+            self.time_boot_us = msg.time_boot_ms * 1000
+            return msg_type
 
         if msg_type == "HEARTBEAT":
             self.flight_mode = self.master.flightmode
+            is_armed = (msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED) != 0
+            if is_armed and not self.armed:
+                self.armed = True
+                self.time_armed_us = self.time_boot_us
+            elif not is_armed and self.armed:
+                self.armed = False
+                self.time_armed_us = None
             return msg_type
 
         if msg_type == "ATTITUDE":
             self.attitude = [msg.roll, msg.pitch, msg.yaw]
+            self.attitude_deg = [
+                math.degrees(msg.roll),
+                math.degrees(msg.pitch),
+                math.degrees(msg.yaw),
+            ]
             return msg_type
 
         if msg_type == "VFR_HUD":
@@ -128,7 +138,7 @@ class ArduPilotBase:
             self.hud_heading = msg.heading  # deg
             self.hud_alt = msg.alt  # m (AMSL ?)
             self.hud_climb = msg.climb  # m/s
-            self.hud_throttle = msg.throttle # (0 to 100)
+            self.hud_throttle = msg.throttle  # (0 to 100)
             return msg_type
 
         if msg_type == "HOME_POSITION":
@@ -223,3 +233,7 @@ class ArduPilotBase:
             *rc_channel_values,
         )  # RC channel list, in microseconds.
 
+    def send_float(self, key, value):
+        self.master.mav.named_value_float_send(
+            int(self.time_boot_us / 1000), key.encode("ascii")[:10], float(value)
+        )

@@ -128,10 +128,13 @@ class Telemetry:
     # масштаб напряжений (зависит от версии: <=3 -> 0.1V, >=4 -> 0.2V)
     v_scale_deciv: int = 1
 
+
     def scaled(self) -> Dict[str, float]:
         V = 0.1 * (2 if self.version >= 4 else 1)
 
         return {
+            "status_code": self.engine_status,
+            "error_code": self.error_code,
             "rpm": float(self.engine_rpm),
             "status": ENGINE_STATE_MAP[self.engine_status],
             "error": ECODE_MAP[self.error_code],
@@ -155,7 +158,6 @@ class Telemetry:
             "idle_rpm": float(self.idle_rpm),
             "ESR_need_pressure": self.esr_need_pressure,
             "RPM_closed_loop": self.rpm_closed_loop,
-            "startup_time_s": self.startup_time_deci_s / 10.0,
             "ecu_temp_C": float(self.ecu_temp_c),
             "propeller_rpm": float(self.propeller_rpm),
             "pump_rpm": float(self.pump_rpm),
@@ -293,6 +295,8 @@ def run(port: str, baud: int, stopbits: int, send_rate_hz: float):
 
             # PRINT
             t = prs.t.scaled()
+
+            
             print(
                 "RPM={rpm:.0f}  T={temp_C:.0f}°C  Thr={throttle_%:.0f}%  "
                 "I={current_A:.1f}A  RC/PWR/PUMP={rc_V:.1f}/{pwr_V:.1f}/{pump_V:.1f}V  "
@@ -324,6 +328,9 @@ class TurbineTelem:
         self.prs = Parser()
         self.next_tx = 0.0
         self.telem = None
+        self.time_boot_us = 0
+        self.time_armed_us = None
+        self.armed = False
 
     def connect(self):
         try:
@@ -333,6 +340,7 @@ class TurbineTelem:
             self.connect()
 
     def step(self):
+        self.time_boot_us = time.time()
         # RX
         data = self.ser.read(512)
         for b in data:
@@ -347,6 +355,14 @@ class TurbineTelem:
 
         # PRINT
         self.telem = self.prs.t.scaled()
+        is_armed = "Run" in self.telem["status"]
+        if is_armed and not self.armed:
+            self.armed = True
+            self.time_armed_us = self.time_boot_us
+        elif not is_armed and self.armed:
+            self.armed = False
+            self.time_armed_us = None
+        self.telem["startup_time_s"] = self.time_boot_us - self.time_armed_us
 
         if self.prs.t.update_rate_code != 2:
             self.ser.write(pkt_set_update_rate(2))
