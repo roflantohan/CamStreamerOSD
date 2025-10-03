@@ -362,11 +362,25 @@ class TurbineTelem:
         elif not is_armed and self.armed:
             self.armed = False
             self.time_armed_us = None
-        self.telem["startup_time_s"] = self.time_boot_us - self.time_armed_us
+        
+        self.telem["startup_time_s"] = self.time_boot_us - self.time_armed_us if self.time_armed_us else 0
 
         if self.prs.t.update_rate_code != 2:
             self.ser.write(pkt_set_update_rate(2))
 
         time.sleep(0.001)
 
+
+# def listen_turbine(port, baud):
+#     turbine = TurbineTelem(port, baud)
+
+#     try:
+#         turbine.connect()
+#     except:
+#         time.sleep(5)
+#         turbine.connect()
+
+#     while True:
+#         turbine.step()
+#         shm.write("turbine", turbine.telem)
 

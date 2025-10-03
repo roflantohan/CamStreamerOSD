@@ -151,8 +151,8 @@ class OSDController(ElementPrinter):
         time_armed_us = self.shm.read("time_armed_us")
         time_boot_us = self.shm.read("time_boot_us")
         timer = (time_boot_us - time_armed_us) // 1000.0 if armed else 0
-        self.print_text(frame, f"{'Armed' if armed else 'Disarmed'}", (2, 130))
-        self.print_text(frame, f"FlyTime: {timer} sec" , (2, 140))
+        # self.print_text(frame, f"{'Armed' if armed else 'Disarmed'}", (2, 130))
+        # self.print_text(frame, f"FlyTime: {timer} sec" , (2, 140))
 
         if self.dir_to_home is not None:
             draw_home_arrow(frame, (50, 220), 20, self.dir_to_home)

@@ -53,11 +53,11 @@ class ArduPilotBase:
         self.master.wait_heartbeat()
         self.boot_t = time.time()
 
-        msg_id = mavutil.mavlink.MAVLINK_MSG_ID_NAMED_VALUE_FLOAT
-        self.request_msg_stream(msg_id)
+        # msg_id = mavutil.mavlink.MAVLINK_MSG_ID_NAMED_VALUE_FLOAT
+        # self.request_msg_stream(msg_id)
 
-        msg_id = 264
-        self.request_msg_stream(msg_id)
+        # msg_id = 264
+        # self.request_msg_stream(msg_id)
 
     def wait_params(self):
         self.master.mav.param_request_list_send(

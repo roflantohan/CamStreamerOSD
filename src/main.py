@@ -39,7 +39,6 @@ def listen_turbine(shm: SharedMemory, port, baud):
 
     while True:
         turbine.step()
-        print(turbine.telem)
         shm.write("turbine", turbine.telem)
 
 
@@ -56,6 +55,7 @@ def listen_telem(shm: SharedMemory, port, baud):
     while True:
         drone.listen_feed()
 
+        shm.write("flight_mode", drone.flight_mode)
         shm.write("roll", drone.attitude[0])
         shm.write("pitch", drone.attitude[1])
         shm.write("home_lat", drone.home_lat)
@@ -90,17 +90,17 @@ def listen_telem(shm: SharedMemory, port, baud):
             ecu_temp_C = t_telem["ecu_temp_C"]
             startup_time_s = t_telem["startup_time_s"]
 
-            drone.send_float("t_stat", status_code)
-            drone.send_float("t_err", error_code)
-            drone.send_float("t_rpm", rpm)
-            drone.send_float("t_temp", temp_c)
-            drone.send_float("t_rc", rc_V)
-            drone.send_float("t_pwr", pwr_V)
-            drone.send_float("t_pump", pump_V)
-            drone.send_float("t_thr", thro_per)
-            drone.send_float("t_curr", current_A)
-            drone.send_float("t_t_ecu", ecu_temp_C)
-            drone.send_float("t_time", startup_time_s)
+            # drone.send_float("t_stat", status_code)
+            # drone.send_float("t_err", error_code)
+            # drone.send_float("t_rpm", rpm)
+            # drone.send_float("t_temp", temp_c)
+            # drone.send_float("t_rc", rc_V)
+            # drone.send_float("t_pwr", pwr_V)
+            # drone.send_float("t_pump", pump_V)
+            # drone.send_float("t_thr", thro_per)
+            # drone.send_float("t_curr", current_A)
+            # drone.send_float("t_t_ecu", ecu_temp_C)
+            # drone.send_float("t_time", startup_time_s)
 
             logger.info(
                 f"{drone.time_boot_us};{status_code};{error_code};{rpm};{temp_c};{rc_V};{pwr_V};{pump_V};{thro_per};{current_A};{ecu_temp_C};{startup_time_s}"
@@ -115,7 +115,7 @@ def launch():
     # For Test: "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
     # For MacOS: "gst-launch-1.0 avfvideosrc device-index=0 ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
     # For Linux: "gst-launch-1.0 v4l2src device=/dev/video1 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
-    gst_str = "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
+    gst_str = "gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
     cap.load_param(gst_str)
     cap.connect()
 
@@ -127,13 +127,13 @@ def launch():
     shm.config["width"] = w
     shm.config["height"] = h
 
-    drone_port = "/dev/ttyAMA10"
+    drone_port = "/dev/ttyAMA0"
     drone_baud = 115200
     autopilot = Process(target=listen_telem, args=(shm, drone_port, drone_baud))
     autopilot.start()
 
     turbine_port = "/dev/ttyUSB0"
-    turbine_baud = 115200
+    turbine_baud = 9600
     turbine = Process(target=listen_turbine, args=(shm, turbine_port, turbine_baud))
     turbine.start()
 
