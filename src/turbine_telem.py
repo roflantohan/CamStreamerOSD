@@ -214,7 +214,7 @@ class Parser:
         self.t.idle_rpm = int(self.buf[3]) * 1000
         self.t.esr_need_pressure = (self.buf[4] >> 5) & 0x01
         self.t.rpm_closed_loop   = (self.buf[4] >> 4) & 0x01
-        self.t.startup_time_deci_s = ((self.buf[4] & 0x0F) << 8) | self.buf[5]
+        # self.t.startup_time_deci_s = ((self.buf[4] & 0x0F) << 8) | self.buf[5]
 
     def _id9(self):
         self.t.ecu_temp_c = int(self.buf[3]) - 50
@@ -341,9 +341,9 @@ class TurbineTelem:
 
         now = time.monotonic()
         # TX
-        if now >= next_tx:
+        if now >= self.next_tx:
             self.ser.write(pkt_empty())
-            next_tx = now + (1.0 / self.send_rate_hz)
+            self.next_tx = now + (1.0 / self.send_rate_hz)
 
         # PRINT
         self.telem = self.prs.t.scaled()
@@ -352,3 +352,5 @@ class TurbineTelem:
             self.ser.write(pkt_set_update_rate(2))
 
         time.sleep(0.001)
+
+

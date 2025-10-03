@@ -20,6 +20,7 @@ def listen_turbine(shm: SharedMemory, port, baud):
 
     while True:
         turbine.step()
+        print(turbine.telem)
         shm.write("turbine", turbine.telem)
 
 
@@ -60,7 +61,7 @@ def launch():
     # For Test: "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
     # For MacOS: "gst-launch-1.0 avfvideosrc device-index=0 ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
     # For Linux: "gst-launch-1.0 v4l2src device=/dev/video1 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
-    gst_str = "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
+    gst_str = "gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
     cap.load_param(gst_str)
     cap.connect()
 
@@ -72,18 +73,19 @@ def launch():
     shm.config["width"] = w
     shm.config["height"] = h
 
-    drone_port = "/dev/cu.usbmodem101"
+    drone_port = "/dev/ttyAMA10"
     drone_baud = 115200
     autopilot = Process(target=listen_telem, args=(shm, drone_port, drone_baud))
     autopilot.start()
 
-    turbine_port = "/dev/cu.usbmodem103"
+    turbine_port = "/dev/ttyUSB0"
     turbine_baud = 115200
     turbine = Process(target=listen_turbine, args=(shm, turbine_port, turbine_baud))
     turbine.start()
 
     out = StreamController()
-    host = "127.0.0.1"
+    # host = "127.0.0.1"
+    host = "192.168.0.101"
     port = 5602
     out.load_param(w, h, host, port)
     out.create()
@@ -102,8 +104,8 @@ def launch():
     finally:
         cap.release()
         out.release()
-        autopilot.terminate()
-        turbine.terminate()
+        # autopilot.terminate()
+        # turbine.terminate()
 
 
 if __name__ == "__main__":

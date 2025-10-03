@@ -202,31 +202,6 @@ class OSDController(ElementPrinter):
         if pitch:
             self.print_text(frame, f"Pitch: {round(math.degrees(pitch), 2)}", (10, 120))
 
-    def add_custom_params(self, frame):
-        hrzn_offset = self.shm.read("hrzn_offset")
-        if hrzn_offset:
-            self.print_text(frame, f"hrzn: {hrzn_offset}", (2, 50))
-
-        p_roll = self.shm.read("p_roll")
-        if p_roll:
-            self.print_text(frame, f"P_roll: {round(p_roll, 2)}", (2, 60))
-
-        d_roll = self.shm.read("d_roll")
-        if d_roll:
-            self.print_text(frame, f"D_roll: {round(d_roll, 2)}", (2, 70))
-
-        p_pitch = self.shm.read("p_pitch")
-        if p_pitch:
-            self.print_text(frame, f"P_pitch: {round(p_pitch, 2)}", (2, 80))
-
-        d_pitch = self.shm.read("d_pitch")
-        if d_pitch:
-            self.print_text(frame, f"D_pitch: {round(d_pitch, 2)}", (2, 90))
-
-        thrust = self.shm.read("thrust_value")
-        if thrust:
-            self.print_text(frame, f"thrust: {round(thrust, 2)}", (2, 100))
-
     def put_ardu_info(self, frame):
         home = self.shm.read("home")
         pos = self.shm.read("pos")
@@ -270,42 +245,28 @@ class OSDController(ElementPrinter):
         if self.dir_to_home is not None:
             draw_home_arrow(frame, (50, 200), 20, self.dir_to_home)
 
-        
 
+    
+    def put_turbine_info(self, frame):
+        t_telem = self.shm.read("turbine")
+
+        if t_telem is not None:
+            status = t_telem["status"]
+            error = t_telem["error"]
+            temp = t_telem["temp_C"]
+            rpm = t_telem["rpm"]
+
+            self.print_text(frame, f"T_STAT: {status}", (2, 70))
+            self.print_text(frame, f"T_ERR: {error}", (2, 70))
+            self.print_text(frame, f"T_TEMP: {temp}", (2, 70))
+            self.print_text(frame, f"T_RPM: {rpm}", (2, 70))
+            
     def put_info(self, frame):
-        self.g_state = self.shm.read("guidance_state")
-
-        if self.g_state == "DETECTION":
-            self.add_detect_spot(frame)
-            self.add_detect_spots(frame)
-            self.add_detect_strength(frame)
-            # self.add_detect_rect(frame)
-
-        if self.g_state == "PRETRACKING":
-            self.add_detect_spot(frame)
-            self.add_detect_strength(frame)
-            # self.add_detect_rect(frame)
-            self.add_track_roi(frame)
-            self.add_result_roi(frame)
-            self.add_track_error(frame)
-
-        if self.g_state == "GUIDANCE":
-            self.add_detect_spot(frame)
-            self.add_detect_strength(frame)
-            # self.add_detect_rect(frame)
-            self.add_track_roi(frame)
-            self.add_result_roi(frame)
-            self.add_track_error(frame)
-
         self.add_horizon(frame)
-
         self.add_center_pointer(frame)
-        self.add_reached_status(frame)
-        self.add_range(frame)
-        self.add_current_state(frame)
-        # self.add_custom_params(frame)
         self.add_fps(frame)
         try:
             self.put_ardu_info(frame)
+            self.put_turbine_info(frame)
         except Exception as err:
             print(err)
