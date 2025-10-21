@@ -16,7 +16,7 @@ def setup_logger(name):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
-    log_filename = f"./{name}_log.log"
+    log_filename = f"./logs/{name}_log.log"
 
     handler = RotatingFileHandler(log_filename, maxBytes=1000000, backupCount=10)
     handler.setLevel(logging.DEBUG)
@@ -31,15 +31,21 @@ def setup_logger(name):
 def listen_turbine(shm: SharedMemory, port, baud):
     turbine = TurbineTelem(port, baud)
 
+    last_write = time.time()
+    diff_write = 0.03
     try:
         turbine.connect()
     except:
         time.sleep(5)
         turbine.connect()
 
+    
     while True:
         turbine.step()
-        shm.write("turbine", turbine.telem)
+        # print(turbine.telem)
+        if time.time() - last_write >= diff_write:
+            last_write = time.time()
+            shm.write("turbine", turbine.telem)
 
 
 def listen_telem(shm: SharedMemory, port, baud):
@@ -52,6 +58,7 @@ def listen_telem(shm: SharedMemory, port, baud):
         time.sleep(5)
         drone.connect()
 
+    last_time_boot_us = 0
     while True:
         drone.listen_feed()
 
@@ -77,6 +84,8 @@ def listen_telem(shm: SharedMemory, port, baud):
 
         t_telem = shm.read("turbine")
 
+        # print(t_telem)
+
         if t_telem is not None:
             status_code = t_telem["status_code"]
             error_code = t_telem["error_code"]
@@ -90,6 +99,13 @@ def listen_telem(shm: SharedMemory, port, baud):
             ecu_temp_C = t_telem["ecu_temp_C"]
             startup_time_s = t_telem["startup_time_s"]
 
+            if drone.time_boot_us != last_time_boot_us:
+                last_time_boot_us = drone.time_boot_us
+                # print(drone.time_boot_us, status_code, error_code, rpm, temp_c, rc_V, pwr_V, pump_V, thro_per, current_A, ecu_temp_C, startup_time_s)
+                logger.info(
+                    f"{drone.time_boot_us};{status_code};{error_code};{rpm};{temp_c};{rc_V};{pwr_V};{pump_V};{thro_per};{current_A};{ecu_temp_C};{startup_time_s}"
+                )
+
             # drone.send_float("t_stat", status_code)
             # drone.send_float("t_err", error_code)
             # drone.send_float("t_rpm", rpm)
@@ -102,9 +118,7 @@ def listen_telem(shm: SharedMemory, port, baud):
             # drone.send_float("t_t_ecu", ecu_temp_C)
             # drone.send_float("t_time", startup_time_s)
 
-            logger.info(
-                f"{drone.time_boot_us};{status_code};{error_code};{rpm};{temp_c};{rc_V};{pwr_V};{pump_V};{thro_per};{current_A};{ecu_temp_C};{startup_time_s}"
-            )
+            
 
 
 def launch():
@@ -112,10 +126,10 @@ def launch():
 
     cap = CaptureController()
 
-    # For Test: "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
+    # For Test: "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
     # For MacOS: "gst-launch-1.0 avfvideosrc device-index=0 ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
-    # For Linux: "gst-launch-1.0 v4l2src device=/dev/video1 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
-    gst_str = "gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
+    # For Linux: "gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
+    gst_str = "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
     cap.load_param(gst_str)
     cap.connect()
 

@@ -323,7 +323,7 @@ class TurbineTelem:
         self.port = port
         self.baud = baud
         self.stopbits = 2
-        self.send_rate_hz = 20
+        self.send_rate_hz = 100
         self.ser = None
         self.prs = Parser()
         self.next_tx = 0.0
@@ -363,24 +363,10 @@ class TurbineTelem:
             self.armed = False
             self.time_armed_us = None
         
-        self.telem["startup_time_s"] = self.time_boot_us - self.time_armed_us if self.time_armed_us else 0
+        self.telem["startup_time_s"] = round(self.time_boot_us - self.time_armed_us, 2) if self.time_armed_us else 0
 
         if self.prs.t.update_rate_code != 2:
             self.ser.write(pkt_set_update_rate(2))
 
         time.sleep(0.001)
-
-
-# def listen_turbine(port, baud):
-#     turbine = TurbineTelem(port, baud)
-
-#     try:
-#         turbine.connect()
-#     except:
-#         time.sleep(5)
-#         turbine.connect()
-
-#     while True:
-#         turbine.step()
-#         shm.write("turbine", turbine.telem)
 

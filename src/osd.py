@@ -1,5 +1,6 @@
 import cv2
 import math
+import time
 from shared_memory import SharedMemory
 from fps_counter import FPSCounter
 
@@ -71,6 +72,8 @@ class OSDController(ElementPrinter):
         self.airspeed = None
         self.groudspeed = None
 
+        self.last_write_turbine = time.time()
+
     def add_center_pointer(self, frame):
         p = (self.w // 2, self.h // 2)
         self.print_circle(frame, p, 1, 2)
@@ -138,19 +141,19 @@ class OSDController(ElementPrinter):
             f"GndSpeed: {self.groudspeed if self.groudspeed is None else round(self.groudspeed, 2)} m/s",
             (2, 100),
         )
-        self.print_text(
-            frame,
-            f"To Home: {self.dist_to_home if self.dist_to_home is None else round(self.dist_to_home, 2)} m",
-            (2, 110),
-        )
+        # self.print_text(
+        #     frame,
+        #     f"To Home: {self.dist_to_home if self.dist_to_home is None else round(self.dist_to_home, 2)} m",
+        #     (2, 110),
+        # )
 
         flight_mode = self.shm.read("flight_mode")
         self.print_text(frame, f"Mode: {flight_mode}", (2, 120))
 
-        armed = self.shm.read("armed")
-        time_armed_us = self.shm.read("time_armed_us")
-        time_boot_us = self.shm.read("time_boot_us")
-        timer = (time_boot_us - time_armed_us) // 1000.0 if armed else 0
+        # armed = self.shm.read("armed")
+        # time_armed_us = self.shm.read("time_armed_us")
+        # time_boot_us = self.shm.read("time_boot_us")
+        # timer = round((time_boot_us - time_armed_us) // 1000.0, 2) if armed else 0
         # self.print_text(frame, f"{'Armed' if armed else 'Disarmed'}", (2, 130))
         # self.print_text(frame, f"FlyTime: {timer} sec" , (2, 140))
 
@@ -163,17 +166,19 @@ class OSDController(ElementPrinter):
         t_telem = self.shm.read("turbine")
 
         if t_telem is not None:
-            status = t_telem["status"]
-            error = t_telem["error"]
-            temp = t_telem["temp_C"]
-            rpm = t_telem["rpm"]
-            time_armed = t_telem["startup_time_s"]
+            if time.time() - self.last_write_turbine >= 1/40:
+                self.last_write_turbine = time.time()
+                status = t_telem["status"]
+                error = t_telem["error"]
+                temp = t_telem["temp_C"]
+                rpm = t_telem["rpm"]
+                time_armed = t_telem["startup_time_s"]
 
-            self.print_text(frame, f"T_STAT: {status}", (2, 150))
-            self.print_text(frame, f"T_ERR: {error}", (2, 160))
-            self.print_text(frame, f"T_TEMP: {temp}", (2, 170))
-            self.print_text(frame, f"T_RPM: {rpm}", (2, 180))
-            self.print_text(frame, f"T_TIME: {time_armed}", (2, 190))
+                self.print_text(frame, f"T_STAT: {status}", (2, 150))
+                self.print_text(frame, f"T_ERR: {error}", (2, 160))
+                self.print_text(frame, f"T_TEMP: {temp}", (2, 170))
+                self.print_text(frame, f"T_RPM: {rpm}", (2, 180))
+                self.print_text(frame, f"T_TIME: {time_armed}", (2, 190))
             
     def put_info(self, frame):
         self.add_horizon(frame)
