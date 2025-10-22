@@ -142,22 +142,22 @@ def listen_telem(shm: SharedMemory, port, baud):
 def launch():
     shm = SharedMemory()
 
-    # cap = CaptureController()
+    cap = CaptureController()
 
     # For Test: "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
     # For MacOS: "gst-launch-1.0 avfvideosrc device-index=0 ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
     # For Linux: "gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
-    # gst_str = "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
-    # cap.load_param(gst_str)
-    # cap.connect()
+    gst_str = "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
+    cap.load_param(gst_str)
+    cap.connect()
 
-    # if not cap.is_cap():
-    #     logging.error("[ CAPTURE ] Not able to connect camera!. Exit...")
-    #     exit()
+    if not cap.is_cap():
+        logging.error("[ CAPTURE ] Not able to connect camera!. Exit...")
+        exit()
 
-    # (w, h) = cap.get_param()
-    # shm.config["width"] = w
-    # shm.config["height"] = h
+    (w, h) = cap.get_param()
+    shm.config["width"] = w
+    shm.config["height"] = h
 
     drone_port = "/dev/ttyAMA0"
     drone_baud = 115200
@@ -169,33 +169,33 @@ def launch():
     turbine = Process(target=listen_turbine, args=(shm, turbine_port, turbine_baud))
     turbine.start()
 
-    # out = StreamController()
-    # host = "127.0.0.1"
-    # host = "192.168.0.101"
-    # port = 5602
-    # out.load_param(w, h, host, port)
-    # out.create()
+    out = StreamController()
+    host = "127.0.0.1"
+    host = "192.168.0.101"
+    port = 5602
+    out.load_param(w, h, host, port)
+    out.create()
 
-    # osd = OSDController(shm)
+    osd = OSDController(shm)
 
-    # lvl = SkyLineFinder(w, h)
+    lvl = SkyLineFinder(w, h)
     try:
         while True:
-            # ret, frame = cap.read()
-            # if not ret:
-            #     continue
-            # roll = shm.read("roll")
-            # pitch = shm.read("pitch")
-            # lvl.find_horizon(roll, pitch)
-            # shm.write("horizon", lvl.get_line())
-            # osd.put_info(frame)
-            # out.write(frame)
-            time.sleep(1)
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            roll = shm.read("roll")
+            pitch = shm.read("pitch")
+            lvl.find_horizon(roll, pitch)
+            shm.write("horizon", lvl.get_line())
+            osd.put_info(frame)
+            out.write(frame)
+            # time.sleep(1)
     except NameError as err:
         print(f"VideoStream ERR: {err}")
     finally:
-        # cap.release()
-        # out.release()
+        cap.release()
+        out.release()
         autopilot.terminate()
         turbine.terminate()
 
