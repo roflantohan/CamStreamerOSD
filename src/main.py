@@ -58,8 +58,10 @@ def listen_telem(shm: SharedMemory, port, baud):
         time.sleep(5)
         drone.connect()
     
-    freq_msg_txt = 1 # 1 Hz
+    freq_msg_err = 1 # 1 Hz
+    freq_msg_txt = 10 # 0.1 Hz
     freq_msg_float = 0.5  # 2 Hz
+    last_time_msg_err = 0
     last_time_msg_float = 0
     last_time_msg_txt = 0
 
@@ -114,17 +116,20 @@ def listen_telem(shm: SharedMemory, port, baud):
                 )
 
             time_now = time.time()
+            
             if time_now - last_time_msg_float > freq_msg_float:
                 last_time_msg_float = time_now
                 drone.send_float("t_rpm", rpm)
                 drone.send_float("t_temp", temp_c)
-            
+
             if time_now - last_time_msg_txt > freq_msg_txt:
                 last_time_msg_txt = time_now
-                if error_code != 0:
-                    drone.send_text(3, err_txt)
-                else:
-                    drone.send_text(4, status_txt)
+                drone.send_text(4, status_txt)
+
+            if error_code != 0 and time_now - last_time_msg_err > freq_msg_err:
+                last_time_msg_err = time_now
+                drone.send_text(3, err_txt)
+                    
 
 
 def launch():
