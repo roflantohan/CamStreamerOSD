@@ -48,6 +48,8 @@ class ArduPilotBase:
 
         self.sat_count = None
 
+        self.dt_last_msg = 0
+
     def connect(self):
         self.master = mavutil.mavlink_connection(self.path, self.baud)
         self.master.wait_heartbeat()
@@ -237,3 +239,6 @@ class ArduPilotBase:
         self.master.mav.named_value_float_send(
             int(self.time_boot_us / 1000), key.encode("ascii")[:10], float(value)
         )
+
+    def send_text(self, severity, msg):
+        self.master.mav.statustext_send(severity, msg.encode("ascii")[:50])

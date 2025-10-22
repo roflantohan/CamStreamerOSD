@@ -57,6 +57,11 @@ def listen_telem(shm: SharedMemory, port, baud):
     except:
         time.sleep(5)
         drone.connect()
+    
+    freq_msg_txt = 1 # 1 Hz
+    freq_msg_float = 0.5  # 2 Hz
+    last_time_msg_float = 0
+    last_time_msg_txt = 0
 
     last_time_boot_us = 0
     while True:
@@ -87,6 +92,8 @@ def listen_telem(shm: SharedMemory, port, baud):
         # print(t_telem)
 
         if t_telem is not None:
+            status_txt = t_telem["status"]
+            err_txt = t_telem["error"]
             status_code = t_telem["status_code"]
             error_code = t_telem["error_code"]
             rpm = t_telem["rpm"]
@@ -106,19 +113,18 @@ def listen_telem(shm: SharedMemory, port, baud):
                     f"{drone.time_boot_us};{status_code};{error_code};{rpm};{temp_c};{rc_V};{pwr_V};{pump_V};{thro_per};{current_A};{ecu_temp_C};{startup_time_s}"
                 )
 
-            # drone.send_float("t_stat", status_code)
-            # drone.send_float("t_err", error_code)
-            # drone.send_float("t_rpm", rpm)
-            # drone.send_float("t_temp", temp_c)
-            # drone.send_float("t_rc", rc_V)
-            # drone.send_float("t_pwr", pwr_V)
-            # drone.send_float("t_pump", pump_V)
-            # drone.send_float("t_thr", thro_per)
-            # drone.send_float("t_curr", current_A)
-            # drone.send_float("t_t_ecu", ecu_temp_C)
-            # drone.send_float("t_time", startup_time_s)
-
+            time_now = time.time()
+            if time_now - last_time_msg_float > freq_msg_float:
+                last_time_msg_float = time_now
+                drone.send_float("t_rpm", rpm)
+                drone.send_float("t_temp", temp_c)
             
+            if time_now - last_time_msg_txt > freq_msg_txt:
+                last_time_msg_txt = time_now
+                if error_code != 0:
+                    drone.send_text(3, err_txt)
+                else:
+                    drone.send_text(4, status_txt)
 
 
 def launch():
@@ -177,8 +183,8 @@ def launch():
     finally:
         cap.release()
         out.release()
-        # autopilot.terminate()
-        # turbine.terminate()
+        autopilot.terminate()
+        turbine.terminate()
 
 
 if __name__ == "__main__":
