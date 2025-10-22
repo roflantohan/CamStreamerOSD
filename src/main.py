@@ -15,8 +15,10 @@ import time
 def setup_logger(name):
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
+    
+    name_time = time.time()
 
-    log_filename = f"./logs/{name}_log.log"
+    log_filename = f"./logs/{name}_{name_time}_log.log"
 
     handler = RotatingFileHandler(log_filename, maxBytes=1000000, backupCount=10)
     handler.setLevel(logging.DEBUG)
@@ -59,13 +61,16 @@ def listen_telem(shm: SharedMemory, port, baud):
         drone.connect()
     
     freq_msg_err = 1 # 1 Hz
-    freq_msg_txt = 10 # 0.1 Hz
+    freq_msg_txt = 5 # 0.1 Hz
     freq_msg_float = 0.5  # 2 Hz
     last_time_msg_err = 0
     last_time_msg_float = 0
     last_time_msg_txt = 0
+    last_msg_txt = ""
+    last_msg_txt_count = 0
 
     last_time_boot_us = 0
+    t0 = time.monotonic()
     while True:
         drone.listen_feed()
 
@@ -91,8 +96,6 @@ def listen_telem(shm: SharedMemory, port, baud):
 
         t_telem = shm.read("turbine")
 
-        # print(t_telem)
-
         if t_telem is not None:
             status_txt = t_telem["status"]
             err_txt = t_telem["error"]
@@ -116,41 +119,45 @@ def listen_telem(shm: SharedMemory, port, baud):
                 )
 
             time_now = time.time()
-            
+            ms = lambda: int((time.monotonic() - t0) * 1000)
             if time_now - last_time_msg_float > freq_msg_float:
                 last_time_msg_float = time_now
-                drone.send_float("t_rpm", rpm)
-                drone.send_float("t_temp", temp_c)
-
-            if time_now - last_time_msg_txt > freq_msg_txt:
+                drone.send_float(ms(), "JET_RPM", rpm/1000)
+                drone.send_float(ms(), "JET_TEMP", temp_c)
+            
+            if last_msg_txt == status_txt and last_msg_txt_count < 4 and time_now - last_time_msg_txt > freq_msg_txt:
                 last_time_msg_txt = time_now
+                last_msg_txt_count += 1
+                drone.send_text(4, status_txt)
+            elif last_msg_txt != status_txt:
+                last_msg_txt_count = 0
+                last_msg_txt = status_txt
                 drone.send_text(4, status_txt)
 
             if error_code != 0 and time_now - last_time_msg_err > freq_msg_err:
                 last_time_msg_err = time_now
                 drone.send_text(3, err_txt)
-                    
 
 
 def launch():
     shm = SharedMemory()
 
-    cap = CaptureController()
+    # cap = CaptureController()
 
     # For Test: "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
     # For MacOS: "gst-launch-1.0 avfvideosrc device-index=0 ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
     # For Linux: "gst-launch-1.0 v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=BGR ! appsink drop=1"
-    gst_str = "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
-    cap.load_param(gst_str)
-    cap.connect()
+    # gst_str = "gst-launch-1.0 -v videotestsrc pattern=ball ! videoconvert ! video/x-raw,width=640,height=480,format=BGR ! appsink drop=1"
+    # cap.load_param(gst_str)
+    # cap.connect()
 
-    if not cap.is_cap():
-        logging.error("[ CAPTURE ] Not able to connect camera!. Exit...")
-        exit()
+    # if not cap.is_cap():
+    #     logging.error("[ CAPTURE ] Not able to connect camera!. Exit...")
+    #     exit()
 
-    (w, h) = cap.get_param()
-    shm.config["width"] = w
-    shm.config["height"] = h
+    # (w, h) = cap.get_param()
+    # shm.config["width"] = w
+    # shm.config["height"] = h
 
     drone_port = "/dev/ttyAMA0"
     drone_baud = 115200
@@ -162,32 +169,33 @@ def launch():
     turbine = Process(target=listen_turbine, args=(shm, turbine_port, turbine_baud))
     turbine.start()
 
-    out = StreamController()
-    host = "127.0.0.1"
+    # out = StreamController()
+    # host = "127.0.0.1"
     # host = "192.168.0.101"
-    port = 5602
-    out.load_param(w, h, host, port)
-    out.create()
+    # port = 5602
+    # out.load_param(w, h, host, port)
+    # out.create()
 
-    osd = OSDController(shm)
+    # osd = OSDController(shm)
 
-    lvl = SkyLineFinder(w, h)
+    # lvl = SkyLineFinder(w, h)
     try:
         while True:
-            ret, frame = cap.read()
-            if not ret:
-                continue
-            roll = shm.read("roll")
-            pitch = shm.read("pitch")
-            lvl.find_horizon(roll, pitch)
-            shm.write("horizon", lvl.get_line())
-            osd.put_info(frame)
-            out.write(frame)
+            # ret, frame = cap.read()
+            # if not ret:
+            #     continue
+            # roll = shm.read("roll")
+            # pitch = shm.read("pitch")
+            # lvl.find_horizon(roll, pitch)
+            # shm.write("horizon", lvl.get_line())
+            # osd.put_info(frame)
+            # out.write(frame)
+            time.sleep(1)
     except NameError as err:
         print(f"VideoStream ERR: {err}")
     finally:
-        cap.release()
-        out.release()
+        # cap.release()
+        # out.release()
         autopilot.terminate()
         turbine.terminate()
 

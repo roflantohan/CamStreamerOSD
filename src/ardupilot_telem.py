@@ -51,7 +51,7 @@ class ArduPilotBase:
         self.dt_last_msg = 0
 
     def connect(self):
-        self.master = mavutil.mavlink_connection(self.path, self.baud)
+        self.master = mavutil.mavlink_connection(self.path, self.baud, source_system=1, source_component=191)
         self.master.wait_heartbeat()
         self.boot_t = time.time()
 
@@ -235,9 +235,14 @@ class ArduPilotBase:
             *rc_channel_values,
         )  # RC channel list, in microseconds.
 
-    def send_float(self, key, value):
+    def send_float(self, ms, key, value):
         self.master.mav.named_value_float_send(
-            int(self.time_boot_us / 1000), key.encode("ascii")[:10], float(value)
+            ms, key.encode("ascii")[:10], float(value)
+        )
+
+    def send_int(self, ms, key, value):
+        self.master.mav. named_value_int_send(
+            ms, key.encode("ascii")[:10], int(value)
         )
 
     def send_text(self, severity, msg):
